@@ -1,0 +1,19 @@
+{
+  "client_name": "client_a",
+  "files": [
+    {
+      "file_name": "customers_*.txt",
+      "bronze_table": "customers",
+      "separator": ",",
+      "is_active": true,
+      "is_header": true
+    },
+    {
+      "file_name": "transactions_*.txt",
+      "bronze_table": "txn",
+      "separator": ",",
+      "is_active": true,
+      "is_header": true
+    }
+  ]
+}

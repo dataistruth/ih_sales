@@ -1,0 +1,12 @@
+# config.yaml
+project:
+  root_dir: /Users/mukeshsingh/spark/ih_sales
+
+paths:
+  raw_landing: data/raw_landing
+  bronze:      data/bronze
+  silver:      data/silver
+  gold:      data/silver
+  log:         data/log
+  checkpoints: data/checkpoints
+  config:      config
