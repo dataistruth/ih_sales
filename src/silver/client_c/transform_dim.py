@@ -54,7 +54,7 @@ COLUMN_MAP = {
 }
 
 
-def transform(spark):
+def transform_customer(spark):
     last_version    = get_last_version(spark, CLIENT, BRONZE_TABLE, SILVER_TABLE)
     current_version = get_current_bronze_version(spark, BRONZE_PATH)
 
@@ -127,7 +127,7 @@ def transform(spark):
 def main():
     spark = get_spark("silver-dim-client_c")
     print(f"\n── {CLIENT} / {SILVER_TABLE} ──────────────────────────────")
-    transform(spark)
+    transform_customer(spark)
     spark.stop()
 
 
