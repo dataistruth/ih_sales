@@ -94,24 +94,56 @@ def ingest_stream(spark, entry: dict, ingested_at: str):
     )
 
     # Append _corrupt_record explicitly so PERMISSIVE mode can populate it
-    schema = base_schema.add(StructField("_corrupt_record", StringType(), True))
+    # Expected number of columns from header/schema
+    expected_cols = len(base_schema.fields)
 
-    print(f"  [STREAM] {src_path}")
-    print(f"           sink : {out_path}")
-    print(f"           chk  : {chk_path}")
-    print(f"           cols : {[f.name for f in base_schema.fields]}")
-
-    # ── Read stream ────────────────────────────────────────────────────────────
-    df = (
+    # Read raw text rows first
+    raw_df = (
         spark.readStream
-        .schema(schema)
-        .option("header",                    str(entry["is_header"]).lower())
-        .option("sep",                       sep)
-        .option("mode",                      "PERMISSIVE")
-        .option("columnNameOfCorruptRecord", "_corrupt_record")
-        .csv(str(src_path))
-        .withColumn("is_header",   F.lit(False))
-        .withColumn("_is_corrupt", F.col("_corrupt_record").isNotNull())
+        .format("text")
+        .load(str(src_path))
+    )
+
+    # Remove header rows if file contains header
+    if entry["is_header"]:
+        header_line = sep.join(base_schema.fieldNames())
+
+        raw_df = raw_df.filter(F.col("value") != header_line)
+
+    # Split and validate column count
+    df = (
+        raw_df
+        .withColumn("_split_cols", F.split(F.col("value"), sep))
+        .withColumn("_col_count", F.size(F.col("_split_cols")))
+        .withColumn(
+            "_corrupt_record",
+            F.when(
+                (F.col("_col_count") < expected_cols) |
+                (F.col("_col_count") < 2),
+                F.col("value")
+            )
+        )
+        .withColumn(
+            "_is_corrupt",
+            F.col("_corrupt_record").isNotNull()
+        )
+    )
+
+    # Map split values into schema columns
+    for idx, field in enumerate(base_schema.fields):
+        df = df.withColumn(
+            field.name,
+            F.when(
+                ~F.col("_is_corrupt"),
+                F.col("_split_cols").getItem(idx)
+            ).cast("string")
+        )
+
+    # Final cleanup
+    df = (
+        df
+        .drop("_split_cols", "_col_count", "value")
+        .withColumn("is_header", F.lit(False))
     )
 
     # ── Audit columns ──────────────────────────────────────────────────────────
